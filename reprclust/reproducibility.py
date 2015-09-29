@@ -149,7 +149,7 @@ def reproducibility(data, splitters, cluster_method, ks, ground_truth=None,
         spaces = [spaces]
 
     if len(splitters) != len(spaces):
-        raise ValueError('Got {0} splitters and {1} spaces'.format(len(splitters, len(spaces))))
+        raise ValueError('Got {0} splitters and {1} spaces'.format(len(splitters), len(spaces)))
 
     if len(splitters) > 1:
         splitter = product(*splitters)
