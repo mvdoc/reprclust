@@ -6,7 +6,7 @@ from numpy.testing import assert_array_equal
 from nose.tools import assert_is_none, assert_equal, assert_raises
 
 from reprclust.cluster_methods import WardClusterMethod
-from reprclust.reproducibility import reproducibility, _run_fold
+from reprclust.reprod import reproducibility, _run_fold
 
 from itertools import product
 

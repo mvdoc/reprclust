@@ -38,6 +38,11 @@ import copy
 from itertools import product
 from joblib import Parallel, delayed
 
+import logging
+#XXX: change this parametrically
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+log = logging.getLogger(__name__)
+
 from mvpa2.datasets.base import Dataset
 from mvpa2.mappers.fx import mean_group_sample
 
@@ -72,6 +77,8 @@ def _run_fold(data, split, cluster_method, ks, fold_fx=None,
         else:
             raise ValueError('We should not get here')
 
+    log.debug('Using split {0} and spaces_split {1}'. format(split, spaces_split))
+
     data_train = data[mask_sa_train, mask_fa_train]
     data_test = data[mask_sa_test, mask_fa_test]
 
@@ -96,19 +103,26 @@ def _run_fold(data, split, cluster_method, ks, fold_fx=None,
             result_fold[str(metric) + '_gt'] = \
                 np.vstack((ks, np.zeros(len(ks))))
 
+    log.debug('Running reproducibility on these ks {0}'.format(ks))
     for i_k, k in enumerate(ks):
+        log.debug('Running k={0}'.format(k))
         # Step 1. Clustering on training/test set and prediction
         # cluster on training set
+        log.debug('Clustering on training set')
         cm_train.train(samples_train, k, compute_full=True)
         # cluster on test set
+        log.debug('Clustering on test set')
         cm_test.train(samples_test, k, compute_full=True)
 
         # predict
+        log.debug('Predicting from training set')
         predicted_label = cm_train.predict(samples_test, k)
+        log.debug('Predicting from test set')
         test_label = cm_test.predict(samples_test, k)
 
         # Step 2. Compute scores and store them
         for metric in cluster_metrics:
+            log.debug('Computing metric {0}'.format(str(metric)))
             result_fold[str(metric)][1, i_k] = \
                 metric(predicted_label, test_label, data=samples_test, k=k)
             if ground_truth is not None:
@@ -120,7 +134,7 @@ def _run_fold(data, split, cluster_method, ks, fold_fx=None,
 def reproducibility(data, splitters, cluster_method, ks, ground_truth=None,
                     fold_fx=None, cluster_metrics=(ARI(), AMI()),
                     spaces='sa.subjects',
-                    n_jobs=1, verbose=51):
+                    n_jobs=1, verbose=51, temp_folder=None):
     """
     Runs the reproducibility algorithm on the data.
 
@@ -140,6 +154,7 @@ def reproducibility(data, splitters, cluster_method, ks, ground_truth=None,
         the splitter(s). If a list, then they're considered in order.
     n_jobs : int
     verbose : int
+    temp_folder: where to store memmapped arrays
     """
     if not isinstance(ks, (list, np.ndarray)):
         raise ValueError('ks must be a list or numpy array')
@@ -153,7 +168,7 @@ def reproducibility(data, splitters, cluster_method, ks, ground_truth=None,
 
     splitter = product(*splitters)
 
-    parallel = Parallel(n_jobs=n_jobs, verbose=verbose)
+    parallel = Parallel(n_jobs=n_jobs, verbose=verbose, temp_folder=temp_folder)
     fold = delayed(_run_fold)
     results = parallel(fold(data, split, cluster_method, ks,
                             ground_truth=ground_truth,
